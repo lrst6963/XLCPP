@@ -52,7 +52,7 @@ gboolean CheckDataTimeout(gpointer data) {
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
     
-    if (ts.tv_sec - g_lastDataTime.load() > 30) { // 30秒超时
+    if (ts.tv_sec - g_lastDataTime.load() > 60) { // 60秒超时
         g_sharedHeartRate.store(0);
         UpdateGuiText("等待中...");
         g_lastDataTime.store(0); // 标记为已重置
@@ -426,7 +426,7 @@ void InitUi(int argc, char **argv) {
     
     // 窗口配置
     gtk_window_set_title(GTK_WINDOW(g_window), "心率监控");
-    gtk_window_set_default_size(GTK_WINDOW(g_window), 400, 150);
+    gtk_window_set_default_size(GTK_WINDOW(g_window), 200, 100);
     
     // 使用 NORMAL 提示以允许拖动。DOCK/UTILITY 通常在某些 WM 上强制固定位置。
     gtk_window_set_type_hint(GTK_WINDOW(g_window), GDK_WINDOW_TYPE_HINT_NORMAL);
@@ -434,6 +434,10 @@ void InitUi(int argc, char **argv) {
     gtk_window_set_decorated(GTK_WINDOW(g_window), FALSE); // 无边框
     gtk_widget_set_app_paintable(g_window, TRUE);
     gtk_window_set_keep_above(GTK_WINDOW(g_window), TRUE); // 始终置顶
+    
+    // 隐藏任务栏图标 (Taskbar) 和 分页器 (Pager) 显示
+    gtk_window_set_skip_taskbar_hint(GTK_WINDOW(g_window), TRUE);
+    gtk_window_set_skip_pager_hint(GTK_WINDOW(g_window), TRUE);
 
     // 由 EdLock 管理的事件
     EdLock_Init(g_window);
