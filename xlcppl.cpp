@@ -176,13 +176,14 @@ void ProcessDeviceProperties(GVariant *props) {
                 const guchar *data = (const guchar *)g_variant_get_fixed_array(value, &n_elements, sizeof(guchar));
                 if (n_elements >= 4) {
                     uint8_t heartRate = data[3];
-                    if (heartRate > 0) {
+                    // 过滤无效值: 0 和 255 (0xFF)
+                    if (heartRate > 0 && heartRate != 255) {
                         g_sharedHeartRate.store(heartRate);
                         
-                        // Parse Name
+                        // 解析名称
                         std::string name = "(未知)";
-                        GVariant *nameVar = g_variant_dict_lookup_value(&dict, "Name", G_VARIANT_TYPE_STRING); // try Name
-                        if (!nameVar) nameVar = g_variant_dict_lookup_value(&dict, "Alias", G_VARIANT_TYPE_STRING); // try Alias
+                        GVariant *nameVar = g_variant_dict_lookup_value(&dict, "Name", G_VARIANT_TYPE_STRING); // 尝试 Name
+                        if (!nameVar) nameVar = g_variant_dict_lookup_value(&dict, "Alias", G_VARIANT_TYPE_STRING); // 尝试 Alias
                         
                         if (nameVar) {
                             name = g_variant_get_string(nameVar, nullptr);
@@ -207,6 +208,9 @@ void ProcessDeviceProperties(GVariant *props) {
                         if (SHOW_CONSOLE) {
                             std::cout << "\r" << std::left << std::setw(20) << name << " (" << rssi << "dBm) HR: " << std::setw(3) << (int)heartRate << "    " << std::flush;
                         }
+                    } else if (SHOW_CONSOLE && heartRate == 255) {
+                        // 调试日志：忽略非心率数据
+                        // std::cout << "\r[忽略非HR数据: 255]       " << std::flush;
                     }
                 }
             }
