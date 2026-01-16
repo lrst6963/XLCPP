@@ -41,6 +41,30 @@ std::mutex g_dataMutex;
 GtkWidget *g_window = nullptr;
 GMainLoop *g_mainLoop = nullptr;
 AppIndicator *g_indicator = nullptr;
+std::atomic<time_t> g_lastDataTime{0};
+
+// Forward Declaration
+void UpdateGuiText(const std::string& text);
+
+gboolean CheckDataTimeout(gpointer data) {
+    if (g_lastDataTime.load() == 0) return TRUE; // 已经在等待或尚未连接
+
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    
+    if (ts.tv_sec - g_lastDataTime.load() > 30) { // 30秒超时
+        g_sharedHeartRate.store(0);
+        UpdateGuiText("等待中...");
+        g_lastDataTime.store(0); // 标记为已重置
+        
+        // 可选：同时也该重置设备名为扫描中？
+        {
+            std::lock_guard<std::mutex> lock(g_dataMutex);
+            g_sharedDeviceName = "扫描中...";
+        }
+    }
+    return TRUE;
+}
 
 // ================= 辅助函数 =================
 void UpdateGuiText(const std::string& text) {
@@ -179,6 +203,11 @@ void ProcessDeviceProperties(GVariant *props) {
                     // 过滤无效值: 0 和 255 (0xFF)
                     if (heartRate > 0 && heartRate != 255) {
                         g_sharedHeartRate.store(heartRate);
+                        
+                        // 更新最后接收时间戳
+                        struct timespec ts;
+                        clock_gettime(CLOCK_MONOTONIC, &ts);
+                        g_lastDataTime.store(ts.tv_sec);
                         
                         // 解析名称
                         std::string name = "(未知)";
@@ -419,6 +448,9 @@ void InitUi(int argc, char **argv) {
 
     // 初始显示
     gtk_widget_show_all(g_window);
+    
+    // 启动超时检查器 (1秒检查一次)
+    g_timeout_add_seconds(1, CheckDataTimeout, nullptr);
 
     // 托盘图标 (AppIndicator)
     g_indicator = app_indicator_new("heart-rate-monitor", "heart", APP_INDICATOR_CATEGORY_APPLICATION_STATUS);
