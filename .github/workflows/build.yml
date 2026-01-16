@@ -1,0 +1,35 @@
+name: Build xlcppl
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libgtk-3-dev libappindicator3-dev
+
+    - name: Build
+      run: make
+
+    - name: Prepare Artifacts
+      run: |
+        mkdir build
+        cp -r bin build/
+        cp start.sh build/
+        cp README.md build/
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: xlcppl-linux
+        path: build/
