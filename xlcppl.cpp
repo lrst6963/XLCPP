@@ -444,7 +444,34 @@ void InitUi(int argc, char **argv) {
     app_indicator_set_menu(g_indicator, GTK_MENU(menu));
 }
 
+// ================= 单实例检查 =================
+#include <sys/file.h>
+#include <errno.h>
+
+int g_lockFileFd = -1;
+
+void CheckSingleInstance() {
+    g_lockFileFd = open("/tmp/xlcppl.lock", O_CREAT | O_RDWR, 0666);
+    if (g_lockFileFd < 0) {
+        std::cerr << "无法打开锁文件: " << strerror(errno) << std::endl;
+        exit(1);
+    }
+
+    int rc = flock(g_lockFileFd, LOCK_EX | LOCK_NB);
+    if (rc < 0) {
+        if (errno == EWOULDBLOCK) {
+            std::cerr << "程序已在运行中 (Instance already running)." << std::endl;
+            exit(1);
+        } else {
+            std::cerr << "无法锁定文件: " << strerror(errno) << std::endl;
+            exit(1);
+        }
+    }
+}
+
 int main(int argc, char **argv) {
+    CheckSingleInstance();
+
     gtk_init(&argc, &argv);
 
     InitBluetooth();
